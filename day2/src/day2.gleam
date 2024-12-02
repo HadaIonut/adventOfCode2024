@@ -1,5 +1,6 @@
 import gleam/int
 import gleam/io
+import gleam/iterator
 import gleam/list
 import gleam/string
 import gleam/yielder
@@ -28,42 +29,85 @@ fn same_sign(list: List(Int)) -> Bool {
   }
 }
 
-fn handle2way(prev, val, acc, left_diff) {
-  case prev > val {
-    True -> is_diff_to_big_2(left_diff, val, acc)
-    False ->
-      case prev < val {
-        False -> acc
-        True -> is_diff_to_big_2(left_diff, val, acc)
+fn is_safe(row) {
+  let max_gradient =
+    list.fold(row, 0, fn(acc, cur) {
+      case int.absolute_value(cur) > acc {
+        True -> int.absolute_value(cur)
+        False -> int.absolute_value(acc)
       }
-  }
+    })
+  let all_same_sign = same_sign(row)
+  let out = all_same_sign && max_gradient < 4
+
+  out
 }
 
-fn is_diff_to_big_2(left_diff, val, acc) {
-  case left_diff > 3 {
-    False -> list.append(acc, [val])
-    True -> acc
-  }
+fn is_safe_2(row) {
+  let assert [left, right] = row
+
+  let out = !{ int.absolute_value(left - right) > 3 }
+  out
 }
 
-fn is_diff_to_big_3(left_diff, right_diff, val, acc) {
-  case left_diff > 3 && right_diff > 3 {
-    False -> list.append(acc, [val])
-    True -> acc
-  }
-}
+fn filter_deez(values) {
+  list.map(values, fn(set) {
+    let iter = yielder.from_list(set) |> yielder.index()
 
-fn handle3way(prev, val, next, acc, left_diff) {
-  let right_diff = int.absolute_value(val - next)
+    yielder.fold(iter, [], fn(acc, cur_iter) {
+      let #(cur, index) = cur_iter
 
-  case prev > val && val > next {
-    True -> is_diff_to_big_3(left_diff, right_diff, val, acc)
-    False ->
-      case prev < val && val < next {
-        True -> is_diff_to_big_3(left_diff, right_diff, val, acc)
-        False -> acc
+      case index {
+        0 -> {
+          let assert Ok(#(second, _)) = yielder.at(iter, 1)
+          let assert Ok(#(next2, _)) = yielder.at(iter, index + 2)
+
+          case is_safe(gradient([cur, second, next2], [])) {
+            False -> [second]
+            True -> [cur]
+          }
+        }
+        index -> {
+          let next_res = yielder.at(iter, index + 1)
+
+          case list.reverse(acc) {
+            [prev, prev_prev, ..] -> {
+              case is_safe(gradient([prev_prev, prev, cur], [])) {
+                True -> list.append(acc, [cur])
+                False -> acc
+              }
+            }
+            [prev] ->
+              case next_res {
+                Ok(#(next, _)) -> {
+                  case is_safe(gradient([prev, cur, next], [])) {
+                    True -> list.append(acc, [cur])
+                    False -> acc
+                  }
+                }
+                Error(_) -> {
+                  case is_safe_2([prev, cur]) {
+                    True -> list.append(acc, [cur])
+                    False -> acc
+                  }
+                }
+              }
+            [] -> {
+              let assert Ok(#(next, _)) = next_res
+              let assert Ok(#(next2, _)) = yielder.at(iter, index + 2)
+
+              case is_safe(gradient([cur, next, next2], [])) {
+                True -> {
+                  list.append(acc, [cur])
+                }
+                False -> []
+              }
+            }
+          }
+        }
       }
-  }
+    })
+  })
 }
 
 pub fn main() {
@@ -80,68 +124,17 @@ pub fn main() {
       })
     })
 
-  let filtered_input =
-    list.map(values, fn(row) {
-      let plm =
-        yielder.from_list(row)
-        |> yielder.index()
+  io.debug(filter_deez(values))
 
-      yielder.fold(plm, [], fn(acc, cur) {
-        let #(val, index) = cur
-
-        case index {
-          0 -> {
-            let assert Ok(#(next, _)) = yielder.at(plm, index + 1)
-
-            let out = handle2way(next, val, acc, int.absolute_value(val - next))
-
-            let ligma = case list.length(out) {
-              0 -> [next]
-              _ -> out
-            }
-            ligma
-          }
-          index -> {
-            let assert Ok(#(prev, _)) =
-              yielder.from_list(acc) |> yielder.index() |> yielder.last()
-
-            let left_diff = int.absolute_value(prev - val)
-            case yielder.at(plm, index + 1) {
-              Ok(#(next, _)) -> handle3way(prev, val, next, acc, left_diff)
-              Error(_) -> handle2way(prev, val, acc, left_diff)
-            }
-          }
-        }
-      })
+  io.debug(
+    list.map2(filter_deez(values), values, fn(a, b) {
+      list.length(b) - list.length(a) < 2
     })
-
-  io.debug(filtered_input)
-
-  let copium =
-    list.map2(filtered_input, values, fn(flt, val) {
-      let diff = int.absolute_value(list.length(flt) - list.length(val))
-      case diff > 2 {
-        False -> flt
-        True -> []
-      }
-    })
-    |> list.filter(fn(l) { l != [] })
-
-  list.each(copium, io.debug)
-  io.debug(list.length(copium))
+    |> list.count(fn(a) { a }),
+  )
 
   let out =
-    list.map(copium, fn(row) { gradient(row, []) })
-    |> list.count(fn(row) {
-      let max_gradient =
-        list.fold(row, 0, fn(acc, cur) {
-          case int.absolute_value(cur) > acc {
-            True -> int.absolute_value(cur)
-            False -> int.absolute_value(acc)
-          }
-        })
-      let all_same_sign = same_sign(row)
-      all_same_sign && max_gradient < 4
-    })
+    list.map(filter_deez(values), fn(row) { gradient(row, []) })
+    |> list.count(is_safe)
   io.debug(out)
 }
