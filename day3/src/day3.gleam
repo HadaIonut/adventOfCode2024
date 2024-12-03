@@ -7,6 +7,12 @@ import gleam/result
 import gleam/string
 import simplifile
 
+fn handle_number_list(list) {
+  string.split(list, ",")
+  |> list.map(fn(num) { result.unwrap(int.parse(num), 0) })
+  |> list.fold(1, fn(acc, cur) { acc * cur })
+}
+
 fn compute_muls(text) {
   let assert Ok(reg) =
     regexp.compile(
@@ -20,14 +26,7 @@ fn compute_muls(text) {
 
     res
     |> option.values()
-    |> list.fold(0, fn(acc, cur) {
-      {
-        string.split(cur, ",")
-        |> list.map(fn(num) { result.unwrap(int.parse(num), 0) })
-        |> list.fold(1, fn(acc, cur) { acc * cur })
-      }
-      + acc
-    })
+    |> list.fold(0, fn(acc, cur) { handle_number_list(cur) + acc })
   })
   |> list.fold(0, fn(acc, cur) { acc + cur })
 }
