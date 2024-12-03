@@ -10,7 +10,7 @@ import simplifile
 fn handle_number_list(list) {
   string.split(list, ",")
   |> list.map(fn(num) { result.unwrap(int.parse(num), 0) })
-  |> list.fold(1, fn(acc, cur) { acc * cur })
+  |> list.fold(1, int.add)
 }
 
 fn compute_muls(text) {
@@ -22,13 +22,11 @@ fn compute_muls(text) {
 
   regexp.scan(reg, text)
   |> list.map(fn(match) {
-    let regexp.Match(_source, res) = match
-
-    res
+    match.submatches
     |> option.values()
     |> list.fold(0, fn(acc, cur) { handle_number_list(cur) + acc })
   })
-  |> list.fold(0, fn(acc, cur) { acc + cur })
+  |> list.fold(0, int.add)
 }
 
 pub fn main() {
@@ -45,14 +43,12 @@ pub fn main() {
   let ans =
     regexp.scan(enabled_reg, res)
     |> list.map(fn(enabled_match) {
-      let regexp.Match(_source, enabled_sec) = enabled_match
-
-      enabled_sec
+      enabled_match.submatches
       |> option.values()
       |> list.map(compute_muls)
     })
     |> list.flatten()
-    |> list.fold(0, fn(acc, cur) { acc + cur })
+    |> list.fold(0, int.add)
 
   io.debug(compute_muls(res))
   io.debug(ans)
