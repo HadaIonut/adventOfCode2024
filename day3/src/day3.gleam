@@ -10,7 +10,7 @@ import simplifile
 fn handle_number_list(list) {
   string.split(list, ",")
   |> list.map(fn(num) { result.unwrap(int.parse(num), 0) })
-  |> list.fold(1, int.add)
+  |> list.fold(1, int.multiply)
 }
 
 fn compute_muls(text) {
