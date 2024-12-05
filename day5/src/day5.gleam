@@ -1,16 +1,16 @@
 import gleam/float.{floor, round}
 import gleam/int.{add, parse, to_float}
 import gleam/io
-import gleam/list.{filter, find, fold, map, sort}
+import gleam/list.{filter, find, fold, length, map, sort}
 import gleam/order
 import gleam/result.{unwrap}
 import gleam/string.{contains, join, split}
-import gleam/yielder.{at, from_list, length}
+import gleam/yielder.{at, from_list}
 import simplifile
 
 fn get_center_elem(update) {
   let middle_index =
-    { update |> from_list() |> length() |> to_float() } /. 2.0
+    { update |> length() |> to_float() } /. 2.0
     |> floor()
     |> round()
 
