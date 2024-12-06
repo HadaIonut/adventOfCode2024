@@ -31,7 +31,7 @@ fn sort_by_rules(update, rules) {
 }
 
 fn clean_split(lines, separator) {
-  lines |> split(separator) |> filter(fn(line) { line != "" })
+  lines |> split(separator) |> filter(string.is_empty)
 }
 
 fn process_result(to_process, prev) {
@@ -51,7 +51,7 @@ pub fn main() {
   right
   |> split("\n")
   |> map(fn(rule) { rule |> clean_split(",") })
-  |> filter(fn(update) { update != [] })
+  |> filter(list.is_empty)
   |> fold([0, 0], fn(acc, update) {
     let sorted = sort_by_rules(update, rules)
     let assert [correct, fixed] = acc
