@@ -131,55 +131,6 @@ fn move(mat, guard_x, guard_y) {
   }
 }
 
-fn walk_mat(mat, x, y, guard_x, guard_y, out: List(task.Task(Int))) {
-  let row = yielder.at(mat, x)
-
-  case row {
-    Ok(row) -> {
-      let val = yielder.at(row, y)
-
-      case val {
-        Ok(_) -> {
-          io.println(string.join(
-            ["x:", int.to_string(x), ", y:", int.to_string(y)],
-            "",
-          ))
-          case x == guard_x && y == guard_y {
-            True -> walk_mat(mat, x, y + 1, guard_x, guard_y, out)
-            False -> {
-              let t =
-                task.async(fn() {
-                  let res = set_at_location(mat, x, y, "#")
-                  let out = case res |> move(guard_x, guard_y) {
-                    Error(_) -> 1
-                    Ok(_) -> 0
-                  }
-                  out
-                })
-
-              walk_mat(mat, x, y + 1, guard_x, guard_y, list.append(out, [t]))
-            }
-          }
-        }
-        Error(_) -> {
-          let res =
-            out
-            |> list.map(task.await_forever)
-            |> list.fold(0, int.add)
-
-          io.println(string.join(
-            ["x:", int.to_string(x), ", y:", int.to_string(y)],
-            "",
-          ))
-          io.debug(res)
-          res + walk_mat(mat, x + 1, 0, guard_x, guard_y, [])
-        }
-      }
-    }
-    Error(_) -> 0
-  }
-}
-
 pub fn main() {
   let input =
     simplifile.read("./input")
@@ -200,16 +151,58 @@ pub fn main() {
   case move(input, x, y) {
     Error(_) -> io.debug("loop detected?")
     Ok(val) -> {
-      let out = val |> yielder.map(yielder.to_list) |> yielder.to_list()
+      let out =
+        val
+        |> yielder.map(fn(row) { row |> yielder.index() |> yielder.to_list() })
+        |> yielder.index()
+        |> yielder.to_list()
 
-      out
-      |> list.flatten()
-      |> list.count(fn(a) { a == "a" || a == "b" || a == "c" || a == "d" })
+      let explored =
+        out
+        |> list.fold([], fn(acc, cur) {
+          let #(row, x) = cur
+
+          row
+          |> list.filter(fn(el) {
+            let #(val, y) = el
+            val == "a" || val == "b" || val == "c" || val == "d"
+          })
+          |> list.fold([], fn(acc2, cur2) {
+            let #(val, y) = cur2
+            list.append(acc2, [#(val, x, y)])
+          })
+          |> list.append(acc)
+        })
+
+      explored
+      |> list.window(100)
+      |> list.fold([], fn(acc, cur) {
+        let out =
+          cur
+          |> list.fold([], fn(acc, cur) {
+            let t =
+              task.async(fn() {
+                let #(_, swp_x, swp_y) = cur
+
+                case set_at_location(input, swp_x, swp_y, "#") |> move(x, y) {
+                  Error(_) -> 1
+                  Ok(_) -> 0
+                }
+              })
+            list.append(acc, [t])
+          })
+
+        let batch =
+          out |> list.fold(0, fn(acc, cur) { acc + task.await_forever(cur) })
+
+        io.debug(batch)
+
+        list.append(acc, [batch])
+      })
+      |> list.fold(0, int.add)
       |> io.debug()
+
       ""
     }
   }
-
-  walk_mat(input, 0, 0, x, y, [])
-  |> io.debug()
 }
