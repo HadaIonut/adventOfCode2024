@@ -1,5 +1,7 @@
+import gleam/int
 import gleam/io
 import gleam/list
+import gleam/otp/task
 import gleam/result
 import gleam/string
 import gleam/yielder
@@ -80,13 +82,19 @@ fn update(
   case get_val_at_location(mat, new_x, new_y) {
     "#" -> {
       let new_mat = set_at_location(mat, cur_x, cur_y, rotate_marker)
-      move(new_mat, cur_x, cur_y)
+      move(new_mat, cur_x, cur_y) |> Ok()
     }
-    _ -> {
-      let new_mat =
-        set_at_location(mat, cur_x, cur_y, cur_marker)
-        |> set_at_location(new_x, new_y, new_marker)
-      move(new_mat, new_x, new_y)
+    cur_val -> {
+      case cur_val == cur_marker {
+        True -> mat |> Error()
+        False -> {
+          let new_mat =
+            set_at_location(mat, cur_x, cur_y, cur_marker)
+            |> set_at_location(new_x, new_y, new_marker)
+
+          move(new_mat, new_x, new_y) |> Ok()
+        }
+      }
     }
   }
 }
@@ -94,12 +102,81 @@ fn update(
 fn move(mat, guard_x, guard_y) {
   let guard = get_val_at_location(mat, guard_x, guard_y)
   case guard {
-    "^" -> update(mat, guard_x, guard_y, guard_x - 1, guard_y, "X", "^", ">")
-    ">" -> update(mat, guard_x, guard_y, guard_x, guard_y + 1, "X", ">", "V")
-    "V" -> update(mat, guard_x, guard_y, guard_x + 1, guard_y, "X", "V", "<")
-    "<" -> update(mat, guard_x, guard_y, guard_x, guard_y - 1, "X", "<", "^")
-    "" -> mat
-    _ -> mat
+    "^" -> {
+      case update(mat, guard_x, guard_y, guard_x - 1, guard_y, "a", "^", ">") {
+        Ok(val) -> val
+        Error(err) -> Error(err)
+      }
+    }
+    ">" -> {
+      case update(mat, guard_x, guard_y, guard_x, guard_y + 1, "b", ">", "V") {
+        Ok(val) -> val
+        Error(err) -> Error(err)
+      }
+    }
+    "V" -> {
+      case update(mat, guard_x, guard_y, guard_x + 1, guard_y, "c", "V", "<") {
+        Ok(val) -> val
+        Error(err) -> Error(err)
+      }
+    }
+    "<" -> {
+      case update(mat, guard_x, guard_y, guard_x, guard_y - 1, "d", "<", "^") {
+        Ok(val) -> val
+        Error(err) -> Error(err)
+      }
+    }
+    "" -> Ok(mat)
+    _ -> Ok(mat)
+  }
+}
+
+fn walk_mat(mat, x, y, guard_x, guard_y, out: List(task.Task(Int))) {
+  let row = yielder.at(mat, x)
+
+  case row {
+    Ok(row) -> {
+      let val = yielder.at(row, y)
+
+      case val {
+        Ok(_) -> {
+          io.println(string.join(
+            ["x:", int.to_string(x), ", y:", int.to_string(y)],
+            "",
+          ))
+          case x == guard_x && y == guard_y {
+            True -> walk_mat(mat, x, y + 1, guard_x, guard_y, out)
+            False -> {
+              let t =
+                task.async(fn() {
+                  let res = set_at_location(mat, x, y, "#")
+                  let out = case res |> move(guard_x, guard_y) {
+                    Error(_) -> 1
+                    Ok(_) -> 0
+                  }
+                  out
+                })
+
+              walk_mat(mat, x, y + 1, guard_x, guard_y, list.append(out, [t]))
+            }
+          }
+        }
+        Error(_) -> {
+          let res =
+            out
+            |> list.map(task.await_forever)
+            |> list.fold(0, int.add)
+
+          io.println(string.join(
+            ["x:", int.to_string(x), ", y:", int.to_string(y)],
+            "",
+          ))
+          io.debug(res)
+          res + walk_mat(mat, x + 1, 0, guard_x, guard_y, [])
+        }
+      }
+    }
+    Error(_) -> 0
   }
 }
 
@@ -120,10 +197,19 @@ pub fn main() {
 
   input |> get_val_at_location(x, y) |> io.debug()
 
-  let out =
-    move(input, x, y)
-    |> yielder.map(yielder.to_list)
-    |> yielder.to_list()
+  case move(input, x, y) {
+    Error(_) -> io.debug("loop detected?")
+    Ok(val) -> {
+      let out = val |> yielder.map(yielder.to_list) |> yielder.to_list()
 
-  out |> list.flatten() |> list.count(fn(a) { a == "X" }) |> io.debug()
+      out
+      |> list.flatten()
+      |> list.count(fn(a) { a == "a" || a == "b" || a == "c" || a == "d" })
+      |> io.debug()
+      ""
+    }
+  }
+
+  walk_mat(input, 0, 0, x, y, [])
+  |> io.debug()
 }
