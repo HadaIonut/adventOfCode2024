@@ -1,12 +1,19 @@
+import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string
+import gleam_community/maths/elementary
 import simplifile
 
 fn concat_nums(a, b) {
-  { int.to_string(a) <> int.to_string(b) } |> int.parse() |> result.unwrap(0)
+  let float_b = int.to_float(b)
+  let log_b = elementary.logarithm_10(float_b) |> result.unwrap(0.0)
+
+  let pow_res = int.power(10, float.ceiling(log_b)) |> result.unwrap(0.0)
+
+  a * float.round(pow_res) + b
 }
 
 fn explore_ops(numbers, acc) {
@@ -40,8 +47,8 @@ pub fn main() {
   input
   |> list.filter(fn(operation) {
     let #(total, numers) = operation
-
     let assert [first, ..rest] = numers
+
     explore_ops(rest, [first]) |> list.any(fn(el) { el == total })
   })
   |> list.fold(0, fn(acc, cur) {
