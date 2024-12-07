@@ -2,6 +2,7 @@ import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
+import gleam/otp/task
 import gleam/result
 import gleam/string
 import gleam_community/maths/elementary
@@ -45,15 +46,29 @@ pub fn main() {
     })
 
   input
-  |> list.filter(fn(operation) {
-    let #(total, numers) = operation
-    let assert [first, ..rest] = numers
-
-    explore_ops(rest, [first]) |> list.any(fn(el) { el == total })
-  })
+  |> list.sized_chunk(10)
   |> list.fold(0, fn(acc, cur) {
-    let #(total, _) = cur
-    total + acc
+    let res =
+      cur
+      |> list.fold([], fn(acc, operation) {
+        let #(total, numers) = operation
+        let assert [first, ..rest] = numers
+        let task = task.async(fn() { #(total, explore_ops(rest, [first])) })
+
+        list.append(acc, [task])
+      })
+      |> list.map(fn(task) { task.await_forever(task) })
+      |> list.filter(fn(row) {
+        let #(total, numers) = row
+
+        list.any(numers, fn(el) { el == total })
+      })
+      |> list.fold(0, fn(acc, cur) {
+        let #(total, _) = cur
+        total + acc
+      })
+    io.debug(res)
+    res + acc
   })
   |> io.debug()
 }
