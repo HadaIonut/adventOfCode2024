@@ -1,32 +1,33 @@
-import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
-import gleam/otp/task
 import gleam/result
 import gleam/string
-import gleam_community/maths/elementary
 import simplifile
 
-fn concat_nums(a, b) {
-  let float_b = int.to_float(b)
-  let log_b = elementary.logarithm_10(float_b) |> result.unwrap(0.0)
-
-  let pow_res = int.power(10, float.ceiling(log_b)) |> result.unwrap(0.0)
-
-  a * float.round(pow_res) + b
+fn concat(a: Int, b: Int) -> Int {
+  list.append(
+    int.digits(a, 10) |> result.unwrap([]),
+    int.digits(b, 10) |> result.unwrap([]),
+  )
+  |> int.undigits(10)
+  |> result.unwrap(0)
 }
 
-fn explore_ops(numbers, acc) {
+fn check(numbers: List(Int), acc: Int, target: Int) -> Bool {
   case numbers {
+    [] -> acc == target
+    _ if acc > target -> False
     [a, ..rest] -> {
-      let new_acc =
-        list.fold(acc, [], fn(acc, cur) {
-          list.append(acc, [cur + a, cur * a, concat_nums(cur, a)])
-        })
-      explore_ops(rest, new_acc)
+      case check(rest, acc + a, target) {
+        True -> True
+        False ->
+          case check(rest, acc * a, target) {
+            True -> True
+            False -> check(rest, concat(acc, a), target)
+          }
+      }
     }
-    [] -> acc
   }
 }
 
@@ -46,29 +47,15 @@ pub fn main() {
     })
 
   input
-  |> list.sized_chunk(10)
-  |> list.fold(0, fn(acc, cur) {
-    let res =
-      cur
-      |> list.fold([], fn(acc, operation) {
-        let #(total, numers) = operation
-        let assert [first, ..rest] = numers
-        let task = task.async(fn() { #(total, explore_ops(rest, [first])) })
+  |> list.filter_map(fn(op) {
+    let #(total, numbers) = op
+    let assert [first, ..rest] = numbers
 
-        list.append(acc, [task])
-      })
-      |> list.map(fn(task) { task.await_forever(task) })
-      |> list.filter(fn(row) {
-        let #(total, numers) = row
-
-        list.any(numers, fn(el) { el == total })
-      })
-      |> list.fold(0, fn(acc, cur) {
-        let #(total, _) = cur
-        total + acc
-      })
-    io.debug(res)
-    res + acc
+    case check(rest, first, total) {
+      True -> Ok(total)
+      False -> Error(0)
+    }
   })
+  |> int.sum()
   |> io.debug()
 }
