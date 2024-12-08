@@ -24,25 +24,20 @@ fn from_list_to_array2d(list) -> Array2D(string) {
   |> dict.from_list()
 }
 
-fn find_antipoles(
-  dict,
-  a: Pos,
-  b: Pos,
-) -> #(yielder.Yielder(Pos), yielder.Yielder(Pos)) {
+fn antipole_generator(dict, cur: Pos, dist_x, dist_y, sign) {
+  case dict.has_key(dict, cur) {
+    False -> yielder.Done
+    True -> yielder.Next(cur, Pos(cur.x + dist_x * sign, cur.y + dist_y * sign))
+  }
+}
+
+fn find_antipoles(dict, a: Pos, b: Pos) {
   #(
     yielder.unfold(a, fn(cur) {
-      case dict.has_key(dict, cur) {
-        False -> yielder.Done
-        True ->
-          yielder.Next(cur, Pos(cur.x + { a.x - b.x }, cur.y + { a.y - b.y }))
-      }
+      antipole_generator(dict, cur, { a.x - b.x }, { a.y - b.y }, 1)
     }),
     yielder.unfold(b, fn(cur) {
-      case dict.has_key(dict, cur) {
-        False -> yielder.Done
-        True ->
-          yielder.Next(cur, Pos(cur.x - { a.x - b.x }, cur.y - { a.y - b.y }))
-      }
+      antipole_generator(dict, cur, { a.x - b.x }, { a.y - b.y }, -1)
     }),
   )
 }
