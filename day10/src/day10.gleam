@@ -33,53 +33,28 @@ pub fn get_next_pos(start_pos: Pos) {
   )
 }
 
-pub fn explore_trail(map, start_pos: Pos, cur_val, out) {
+pub fn solve_branch(map, pos, cur_val) {
+  case dict.get(map, pos) {
+    Ok(val) ->
+      case val - cur_val == 1 {
+        True -> explore_trail(map, pos, val)
+        False -> []
+      }
+    Error(_) -> []
+  }
+}
+
+pub fn explore_trail(map, start_pos: Pos, cur_val) {
   let new_pos = get_next_pos(start_pos)
 
   case cur_val == 9 {
     True -> [start_pos]
     False -> {
       list.flatten([
-        case dict.get(map, new_pos.0) {
-          Ok(val) ->
-            case val - cur_val == 1 {
-              True -> {
-                explore_trail(map, new_pos.0, val, out)
-              }
-              False -> []
-            }
-          Error(_) -> []
-        },
-        case dict.get(map, new_pos.1) {
-          Ok(val) ->
-            case val - cur_val == 1 {
-              True -> {
-                explore_trail(map, new_pos.1, val, out)
-              }
-              False -> []
-            }
-          Error(_) -> []
-        },
-        case dict.get(map, new_pos.2) {
-          Ok(val) ->
-            case val - cur_val == 1 {
-              True -> {
-                explore_trail(map, new_pos.2, val, out)
-              }
-              False -> []
-            }
-          Error(_) -> []
-        },
-        case dict.get(map, new_pos.3) {
-          Ok(val) ->
-            case val - cur_val == 1 {
-              True -> {
-                explore_trail(map, new_pos.3, val, out)
-              }
-              False -> []
-            }
-          Error(_) -> []
-        },
+        solve_branch(map, new_pos.0, cur_val),
+        solve_branch(map, new_pos.1, cur_val),
+        solve_branch(map, new_pos.2, cur_val),
+        solve_branch(map, new_pos.3, cur_val),
       ])
     }
   }
@@ -106,7 +81,7 @@ pub fn main() {
     input
     |> dict.filter(fn(_, val) { val == 0 })
     |> dict.fold([], fn(acc, pos, val) {
-      list.append([explore_trail(input, pos, val, 0)], acc)
+      list.append([explore_trail(input, pos, val)], acc)
     })
 
   exploration_res
