@@ -30,29 +30,28 @@ fn evolve_uncached(dict, cur: Int, until: Int) {
   case cur == until {
     True -> dict
     False -> {
-      let next =
-        dict.fold(dict, dict.new(), fn(acc, cur_pos, cur_val) {
-          let digit_count = count_digits(cur_pos)
-          let is_even = int.modulo(digit_count, 2) |> result.unwrap(0)
+      dict.fold(dict, dict.new(), fn(acc, cur_pos, cur_val) {
+        let digit_count = count_digits(cur_pos)
+        let is_even = int.modulo(digit_count, 2) |> result.unwrap(0)
 
-          case cur_pos {
-            0 -> add_to_dict(acc, 1, cur_val)
-            _ if is_even == 0 -> {
-              let half = digit_count / 2
-              let divider =
-                int.power(10, int.to_float(half))
-                |> result.unwrap(0.0)
-                |> float.round()
+        case cur_pos {
+          0 -> add_to_dict(acc, 1, cur_val)
+          _ if is_even == 0 -> {
+            let half = digit_count / 2
+            let divider =
+              int.power(10, int.to_float(half))
+              |> result.unwrap(0.0)
+              |> float.round()
 
-              let left = cur_pos / divider
-              let right = int.modulo(cur_pos, divider) |> result.unwrap(0)
+            let left = cur_pos / divider
+            let right = int.modulo(cur_pos, divider) |> result.unwrap(0)
 
-              add_to_dict(acc, left, cur_val) |> add_to_dict(right, cur_val)
-            }
-            val -> add_to_dict(acc, val * 2024, cur_val)
+            add_to_dict(acc, left, cur_val) |> add_to_dict(right, cur_val)
           }
-        })
-      evolve_uncached(next, cur + 1, until)
+          val -> add_to_dict(acc, val * 2024, cur_val)
+        }
+      })
+      |> evolve_uncached(cur + 1, until)
     }
   }
 }
