@@ -67,7 +67,7 @@ pub fn solve_equation(input: Machine) {
 }
 
 pub fn is_round(number, prec) {
-  float.loosely_equals(float.round(number) |> int.to_float(), number, prec)
+  float.round(number) |> int.to_float() |> float.loosely_equals(number, prec)
 }
 
 pub fn get_machine(chunk, part: Part) {
