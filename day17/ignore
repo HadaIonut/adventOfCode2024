@@ -1,0 +1,8 @@
+B <- A % 8
+B <- B xor 5
+C <- A / B
+B <- C % 8
+A <- A / 3
+B <- B xor C
+out(B)
+jmp(start)

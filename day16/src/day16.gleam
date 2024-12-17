@@ -52,7 +52,7 @@ pub fn get_ortho(point: Pos) {
 
 pub fn main() {
   let input =
-    simplifile.read("testInput")
+    simplifile.read("input")
     |> result.unwrap("")
     |> string.split("\n")
     |> list.index_fold(dict.new(), fn(acc, row, y) {
@@ -93,12 +93,7 @@ pub fn main() {
       True -> acc
     }
   })
-  |> int.add(1)
   |> int.multiply(1000)
   |> int.add(len)
   |> io.debug()
-
-  path
-  |> list.fold(input, fn(acc, cur) { dict.insert(acc, Pos(cur.0, cur.1), "*") })
-  |> print_map()
 }
