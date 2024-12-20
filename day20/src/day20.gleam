@@ -1,13 +1,12 @@
 import gleam/bool
 import gleam/deque
 import gleam/dict
+import gleam/int
 import gleam/io
 import gleam/list
-import gleam/queue
 import gleam/result
 import gleam/set
 import gleam/string
-import gleam_star
 import simplifile
 
 pub type Pos =
@@ -25,12 +24,21 @@ pub fn neighbors(cur: Pos) {
   ]
 }
 
-pub fn solve_maze(maze: Map, queue, visited) -> Int {
+pub fn cheat_jump(cur: Pos) {
+  [
+    #(cur.0 + 2, cur.1),
+    #(cur.0 - 2, cur.1),
+    #(cur.0, cur.1 - 2),
+    #(cur.0, cur.1 + 2),
+  ]
+}
+
+pub fn solve_maze(maze: Map, queue, visited) {
   case deque.pop_front(queue) {
     Error(_) -> panic
-    Ok(#(#(val, dist), new_queue)) -> {
+    Ok(#(#(val, path), new_queue)) -> {
       let is_end = { dict.get(maze, val) |> result.unwrap("") } == "E"
-      use <- bool.guard(is_end, dist)
+      use <- bool.guard(is_end, path)
 
       let neigh = neighbors(val)
 
@@ -42,7 +50,10 @@ pub fn solve_maze(maze: Map, queue, visited) -> Int {
             True -> {
               #(
                 set.insert(acc.0, neighbor),
-                deque.push_back(acc.1, #(neighbor, dist + 1)),
+                deque.push_back(acc.1, #(
+                  neighbor,
+                  list.append(path, [neighbor]),
+                )),
               )
             }
             False -> acc
@@ -50,6 +61,43 @@ pub fn solve_maze(maze: Map, queue, visited) -> Int {
         })
       solve_maze(maze, new_queue.1, new_queue.0)
     }
+  }
+}
+
+pub fn manhatan_distance() {
+  todo
+}
+
+pub fn find(target, list, index) {
+  case list {
+    [val, ..rest] if val == target -> Ok(#(val, index))
+    [val, ..rest] -> find(target, rest, index + 1)
+    [] -> Error(Nil)
+  }
+}
+
+pub fn find_any(target_list, list, out) {
+  case target_list {
+    [val, ..rest] ->
+      case find(val, list, 0) {
+        Ok(val) -> find_any(rest, list, list.append(out, [val]))
+        Error(_) -> find_any(rest, list, out)
+      }
+    [] -> out
+  }
+}
+
+pub fn cheat(path, cur_index, out) {
+  case path {
+    [val, ..rest] -> {
+      let inc_count =
+        cheat_jump(val)
+        |> find_any(rest, [])
+        |> list.count(fn(jump) { jump.1 >= 100 })
+
+      cheat(rest, cur_index + 1, out + inc_count)
+    }
+    [] -> out
   }
 }
 
@@ -67,35 +115,22 @@ pub fn main() {
     })
     |> dict.filter(fn(_, val) { val != "" })
 
-  let start =
-    dict.fold(map, #(0, 0), fn(acc, pos, val) {
-      case val == "S" {
-        False -> acc
-        True -> pos
+  let #(start, end) =
+    dict.fold(map, #(#(0, 0), #(0, 0)), fn(acc, pos, val) {
+      case val == "S", val == "E" {
+        _, True -> #(acc.0, pos)
+        True, _ -> #(pos, acc.1)
+        _, _ -> acc
       }
     })
 
-  let normal_path_len =
+  let normal_path =
     deque.new()
-    |> deque.push_back(#(start, 0))
+    |> deque.push_back(#(start, []))
     |> solve_maze(map, _, set.new())
 
-  dict.fold(map, 0, fn(acc, pos, val) {
-    case val == "#" {
-      True -> {
-        let cheated_dict = dict.insert(map, pos, ".")
-        let new_score =
-          deque.new()
-          |> deque.push_back(#(start, 0))
-          |> solve_maze(cheated_dict, _, set.new())
-
-        case normal_path_len - new_score >= 100 {
-          True -> acc + 1
-          False -> acc
-        }
-      }
-      False -> acc
-    }
-  })
+  list.append([start], normal_path)
+  |> list.append([end])
+  |> cheat(0, 0)
   |> io.debug()
 }
