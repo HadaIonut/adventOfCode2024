@@ -22,7 +22,7 @@ pub fn get_op_value(operand, memory) {
     4 -> dict.get(memory, A) |> result.unwrap(0)
     5 -> dict.get(memory, B) |> result.unwrap(0)
     6 -> dict.get(memory, C) |> result.unwrap(0)
-    7 -> todo
+    7 -> -1
     _ -> 0
   }
 }
@@ -180,12 +180,14 @@ pub fn main() {
         left |> string.split_once(" ") |> result.unwrap(#("", ""))
       let value = int.parse(right) |> result.unwrap(0)
 
-      case reg_name {
-        "A" -> dict.insert(acc, A, value)
-        "B" -> dict.insert(acc, B, value)
-        "C" -> dict.insert(acc, C, value)
-        _ -> acc
+      let reg = case reg_name {
+        "A" -> A
+        "B" -> B
+        "C" -> C
+        _ -> C
       }
+
+      dict.insert(acc, reg, value)
     })
 
   let program =

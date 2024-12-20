@@ -295,4 +295,12 @@ pub fn main() {
       print_map(cur_map)
       evolve(cur_map, cur_robot, cur, Part2)
     })
+
+  let a = True
+  let b = False
+
+  case a, b {
+    True, _ -> 1
+    False, _ -> 0
+  }
 }

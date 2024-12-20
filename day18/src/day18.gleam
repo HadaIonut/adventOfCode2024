@@ -78,7 +78,7 @@ pub fn main() {
       #(int_parse(left), int_parse(right))
     })
 
-  input |> list.take(12) |> p1
+  input |> list.take(1023) |> p1
 
   input |> list.reverse |> p2 |> io.debug
 }
