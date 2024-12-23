@@ -1,3 +1,4 @@
+import gleam/bool
 import gleam/dict
 import gleam/int
 import gleam/io
@@ -6,11 +7,16 @@ import gleam/option
 import gleam/result
 import gleam/set
 import gleam/string
+import pocket_watch
 import simplifile
 
 pub fn p1(global_connections) {
-  dict.fold(global_connections, set.new(), fn(acc, computer, connections) {
-    list.fold(connections, [], fn(acc, connection) {
+  use <- pocket_watch.simple("part 1")
+  {
+    use acc, computer, connections <- dict.fold(global_connections, set.new())
+    {
+      use acc, connection <- list.fold(connections, acc)
+
       dict.get(global_connections, connection)
       |> result.unwrap([])
       |> list.filter(fn(second_connection) {
@@ -18,23 +24,21 @@ pub fn p1(global_connections) {
         |> result.unwrap([])
         |> list.any(fn(conn) { conn == computer })
       })
-      |> list.fold([], fn(acc, cur) {
-        list.append(acc, [[computer, connection, cur]])
+      |> list.fold(acc, fn(acc, cur) {
+        set.insert(acc, list.sort([computer, connection, cur], string.compare))
       })
-      |> list.append(acc, _)
-    })
-    |> list.fold(acc, fn(acc, cur) {
-      cur
-      |> list.sort(string.compare)
-      |> set.insert(acc, _)
-    })
+    }
+  }
+  |> set.fold(0, fn(acc, val) {
+    case list.any(val, string.starts_with(_, "t")) {
+      True -> acc + 1
+      False -> acc
+    }
   })
-  |> set.to_list()
-  |> list.count(list.any(_, string.starts_with(_, "t")))
   |> io.debug()
 }
 
-pub fn get_graph_from_node(global_connections, computer, visited) {
+pub fn get_graph_from_node(global_connections, computer) {
   let connections =
     dict.get(global_connections, computer)
     |> result.unwrap([])
@@ -60,8 +64,61 @@ pub fn get_graph_from_node(global_connections, computer, visited) {
   dict.filter(conn_count, fn(_, val) { val == max })
 }
 
+pub fn same_value(merged) {
+  merged
+  |> dict.values()
+  |> list.window_by_2()
+  |> list.fold(True, fn(acc, cur) { cur.0 == cur.1 && acc })
+}
+
+pub fn get_max_connections(merged_connections) {
+  dict.fold(merged_connections, 0, fn(acc, _, connections) {
+    let val = dict.fold(connections, 0, fn(acc, _, val) { acc + val }) / 2
+
+    case val > acc {
+      True -> val
+      False -> acc
+    }
+  })
+}
+
+pub fn p2(global_connections) {
+  use <- pocket_watch.simple("part 2")
+  let folded =
+    dict.fold(global_connections, dict.new(), fn(acc, computer, _) {
+      get_graph_from_node(global_connections, computer)
+      |> dict.insert(acc, computer, _)
+    })
+
+  let folded = {
+    use acc, computer, connections <- dict.fold(folded, dict.new())
+    {
+      use acc, com, _ <- dict.fold(connections, connections)
+      let val = dict.get(folded, com) |> result.unwrap(dict.new())
+
+      let merged = dict.merge(acc, val)
+      use <- bool.guard(same_value(merged), merged)
+      acc
+    }
+    |> dict.insert(acc, computer, _)
+  }
+
+  let max = get_max_connections(folded)
+
+  let maxed =
+    dict.filter(folded, fn(_, connections) {
+      dict.fold(connections, 0, fn(acc, _, val) { acc + val }) / 2 == max
+    })
+    |> dict.values()
+    |> list.first()
+    |> result.unwrap(dict.new())
+
+  dict.keys(maxed) |> string.join(",") |> io.debug()
+}
+
 pub fn main() {
-  let global_connections =
+  let global_connections = {
+    use <- pocket_watch.simple("data collection")
     simplifile.read("input")
     |> result.unwrap("")
     |> string.split("\n")
@@ -83,55 +140,7 @@ pub fn main() {
         Error(_) -> acc
       }
     })
-  p1(global_connections)
-
-  let folded =
-    dict.fold(global_connections, dict.new(), fn(acc, computer, _) {
-      get_graph_from_node(global_connections, computer, set.new())
-      |> dict.insert(acc, computer, _)
-    })
-
-  let folded =
-    dict.fold(folded, dict.new(), fn(acc, computer, connections) {
-      dict.fold(connections, connections, fn(acc, com, con) {
-        case dict.get(folded, com) {
-          Error(_) -> acc
-          Ok(val) -> {
-            let merged = dict.merge(acc, val)
-            let all_equal =
-              merged
-              |> dict.values()
-              |> list.window_by_2()
-              |> list.fold(True, fn(acc, cur) { cur.0 == cur.1 && acc })
-            case all_equal {
-              True -> merged
-              False -> acc
-            }
-          }
-        }
-      })
-      |> dict.insert(acc, computer, _)
-    })
-  let max =
-    dict.fold(folded, 0, fn(acc, computer, connections) {
-      let val = dict.fold(connections, 0, fn(acc, cur, val) { acc + val }) / 2
-
-      case val > acc {
-        True -> val
-        False -> acc
-      }
-    })
-
-  let maxed =
-    dict.filter(folded, fn(computer, connections) {
-      let val = dict.fold(connections, 0, fn(acc, cur, val) { acc + val }) / 2
-      val == max
-    })
-    |> dict.values()
-    |> list.first()
-
-  case maxed {
-    Ok(val) -> dict.keys(val) |> string.join(",") |> io.debug()
-    Error(_) -> panic
   }
+  p1(global_connections)
+  p2(global_connections)
 }
