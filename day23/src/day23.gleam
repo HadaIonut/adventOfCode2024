@@ -56,10 +56,8 @@ pub fn get_graph_from_node(global_connections, computer) {
 
   let max =
     dict.fold(conn_count, 0, fn(acc, _, val) {
-      case val > acc {
-        True -> val
-        False -> acc
-      }
+      use <- bool.guard(val > acc, val)
+      acc
     })
   dict.filter(conn_count, fn(_, val) { val == max })
 }
@@ -116,6 +114,13 @@ pub fn p2(global_connections) {
   dict.keys(maxed) |> string.join(",") |> io.debug()
 }
 
+pub fn insert(val, insert) {
+  case val {
+    option.None -> set.new() |> set.insert(insert)
+    option.Some(list) -> set.insert(list, insert)
+  }
+}
+
 pub fn main() {
   let global_connections = {
     use <- pocket_watch.simple("data collection")
@@ -123,22 +128,11 @@ pub fn main() {
     |> result.unwrap("")
     |> string.split("\n")
     |> list.fold(dict.new(), fn(acc, cur) {
-      case string.split_once(cur, "-") {
-        Ok(#(left, right)) ->
-          dict.upsert(acc, left, fn(val) {
-            case val {
-              option.None -> set.new() |> set.insert(right)
-              option.Some(list) -> set.insert(list, right)
-            }
-          })
-          |> dict.upsert(right, fn(val) {
-            case val {
-              option.None -> set.new() |> set.insert(left)
-              option.Some(list) -> set.insert(list, left)
-            }
-          })
-        Error(_) -> acc
-      }
+      use <- bool.guard(cur == "", acc)
+      let assert Ok(#(left, right)) = string.split_once(cur, "-")
+
+      dict.upsert(acc, left, insert(_, right))
+      |> dict.upsert(right, insert(_, left))
     })
   }
 
