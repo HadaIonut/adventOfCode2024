@@ -10,30 +10,32 @@ import gleam/string
 import pocket_watch
 import simplifile
 
+pub fn set_any(target, tst_fn) {
+  set.fold(target, False, fn(acc, cur) { acc || tst_fn(cur) })
+}
+
 pub fn p1(global_connections) {
   use <- pocket_watch.simple("part 1")
   {
     use acc, computer, connections <- dict.fold(global_connections, set.new())
     {
-      use acc, connection <- list.fold(connections, acc)
+      use acc, connection <- set.fold(connections, acc)
 
       dict.get(global_connections, connection)
-      |> result.unwrap([])
-      |> list.filter(fn(second_connection) {
+      |> result.unwrap(set.new())
+      |> set.filter(fn(second_connection) {
         dict.get(global_connections, second_connection)
-        |> result.unwrap([])
-        |> list.any(fn(conn) { conn == computer })
+        |> result.unwrap(set.new())
+        |> set_any(fn(conn) { conn == computer })
       })
-      |> list.fold(acc, fn(acc, cur) {
+      |> set.fold(acc, fn(acc, cur) {
         set.insert(acc, list.sort([computer, connection, cur], string.compare))
       })
     }
   }
   |> set.fold(0, fn(acc, val) {
-    case list.any(val, string.starts_with(_, "t")) {
-      True -> acc + 1
-      False -> acc
-    }
+    use <- bool.guard(list.any(val, string.starts_with(_, "t")), acc + 1)
+    acc
   })
   |> io.debug()
 }
@@ -41,14 +43,12 @@ pub fn p1(global_connections) {
 pub fn get_graph_from_node(global_connections, computer) {
   let connections =
     dict.get(global_connections, computer)
-    |> result.unwrap([])
-    |> set.from_list()
+    |> result.unwrap(set.new())
 
   let conn_count =
     set.fold(connections, dict.new(), fn(acc, cur) {
       dict.get(global_connections, cur)
-      |> result.unwrap([])
-      |> set.from_list()
+      |> result.unwrap(set.new())
       |> set.intersection(connections, _)
       |> set.size()
       |> dict.insert(acc, cur, _)
@@ -127,20 +127,21 @@ pub fn main() {
         Ok(#(left, right)) ->
           dict.upsert(acc, left, fn(val) {
             case val {
-              option.None -> [right]
-              option.Some(list) -> list.append(list, [right])
+              option.None -> set.new() |> set.insert(right)
+              option.Some(list) -> set.insert(list, right)
             }
           })
           |> dict.upsert(right, fn(val) {
             case val {
-              option.None -> [left]
-              option.Some(list) -> list.append(list, [left])
+              option.None -> set.new() |> set.insert(left)
+              option.Some(list) -> set.insert(list, left)
             }
           })
         Error(_) -> acc
       }
     })
   }
+
   p1(global_connections)
   p2(global_connections)
 }
