@@ -6,6 +6,7 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import pocket_watch
 import simplifile
 
 pub fn evolve(number) {
@@ -51,16 +52,17 @@ pub fn accumumate_wins(acc, cur) {
 }
 
 pub fn p1(numbers) {
+  use <- pocket_watch.simple("part 1")
   numbers
   |> list.fold(0, fn(acc, nr) {
     list.repeat(0, 2000)
     |> list.fold(nr, fn(acc, _) { evolve(acc) })
     |> int.add(acc)
   })
-  |> io.debug()
 }
 
 pub fn p2(numbers) {
+  use <- pocket_watch.simple("part 2")
   numbers
   |> list.fold(dict.new(), accumumate_wins)
   |> dict.fold(#(#(0, 0, 0, 0), 0), fn(acc, pos, cur) {
@@ -69,16 +71,17 @@ pub fn p2(numbers) {
       False -> acc
     }
   })
-  |> io.debug()
 }
 
 pub fn main() {
-  let numbers =
+  let numbers = {
+    use <- pocket_watch.simple("data processing")
     simplifile.read("input")
     |> result.unwrap("")
     |> string.trim
     |> string.split("\n")
     |> list.map(fn(a) { int.parse(a) |> result.unwrap(-1) })
+  }
 
   p1(numbers)
   p2(numbers)
