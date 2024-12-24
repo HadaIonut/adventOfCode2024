@@ -82,6 +82,12 @@ pub fn keep_evolving(input, prev) {
   }
 }
 
+pub fn is_io(val) {
+  string.starts_with(val, "x")
+  || string.starts_with(val, "y")
+  || string.starts_with(val, "z")
+}
+
 pub fn main() {
   let assert Ok(#(left, right)) =
     simplifile.read("input")
@@ -104,6 +110,19 @@ pub fn main() {
     |> list.fold([], fn(acc, cur) {
       let assert Ok(#(op, dest)) = string.split_once(cur, " -> ")
       let assert [a, op, b] = string.split(op, " ")
+
+      case dest {
+        "z" <> _ if op != "XOR" -> io.debug(cur)
+        _ -> cur
+      }
+      let vals = [is_io(a), is_io(b), is_io(dest)]
+
+      case op == "XOR" && !list.any(vals, fn(val) { val }) {
+        True -> {
+          io.debug(cur)
+        }
+        False -> cur
+      }
 
       let op = case op {
         "AND" -> and
@@ -135,7 +154,14 @@ pub fn main() {
       }
     })
 
-  io.debug("0" <> x)
-  io.debug("0" <> y)
+  let x =
+    int.base_parse(x, 2)
+    |> result.unwrap(0)
+  let y =
+    int.base_parse(y, 2)
+    |> result.unwrap(0)
+  int.bitwise_exclusive_or(out, x + y)
+  |> int.to_base2()
+  |> io.debug()
   int.to_base2(out) |> io.debug()
 }
